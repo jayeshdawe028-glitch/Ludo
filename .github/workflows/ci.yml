@@ -16,4 +16,7 @@ jobs:
           node-version: 22
       - run: npm install
       - run: npm test
-      - run: npm run build
+      - name: Build Activity
+        run: npm run build --workspace apps/activity
+      - name: Build server
+        run: npm run build --workspace apps/server
