@@ -25,6 +25,8 @@ services:
     restart: unless-stopped
     depends_on:
       - ludocord
+    environment:
+      PUBLIC_DOMAIN: ${PUBLIC_DOMAIN}
     ports:
       - "80:80"
       - "443:443"
