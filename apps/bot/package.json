@@ -1,0 +1,8 @@
+{
+  "name": "@ludocord/bot",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": { "start": "tsx src/index.ts", "dev": "tsx watch src/index.ts" },
+  "dependencies": { "discord.js": "^14.22.1", "dotenv": "^16.5.0", "tsx": "^4.19.4" }
+}
