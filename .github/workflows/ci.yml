@@ -17,6 +17,17 @@ jobs:
       - run: npm install
       - run: npm test
       - name: Build Activity
-        run: npm run build --workspace apps/activity
+        id: activity
+        continue-on-error: true
+        run: npm run build --workspace apps/activity > activity-build.log 2>&1
+      - name: Upload Activity build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: activity-build-log
+          path: activity-build.log
+      - name: Fail if Activity build failed
+        if: steps.activity.outcome == 'failure'
+        run: exit 1
       - name: Build server
         run: npm run build --workspace apps/server
