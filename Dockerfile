@@ -20,5 +20,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/server/package.json apps/server/package.json
 COPY --from=build /app/apps/server/dist apps/server/dist
 COPY --from=build /app/apps/activity/dist apps/activity/dist
+COPY --from=build /app/apps/bot/package.json apps/bot/package.json
+COPY --from=build /app/apps/bot/src apps/bot/src
 EXPOSE 3000
 CMD ["npm","start"]
