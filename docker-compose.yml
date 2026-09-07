@@ -20,6 +20,23 @@ services:
     expose:
       - "3000"
 
+  bot:
+    build:
+      context: .
+      args:
+        VITE_DISCORD_CLIENT_ID: ${DISCORD_APPLICATION_ID}
+        VITE_SERVER_URL: ${PUBLIC_URL}
+    restart: unless-stopped
+    depends_on:
+      - ludocord
+    environment:
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN}
+      SERVER_URL: http://ludocord:3000
+      BOT_INVITE_URL: ${BOT_INVITE_URL}
+      COMMUNITY_URL: ${COMMUNITY_URL}
+    command: ["npm","run","start","--workspace","apps/bot"]
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
