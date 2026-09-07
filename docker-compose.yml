@@ -1,0 +1,39 @@
+services:
+  ludocord:
+    build:
+      context: .
+      args:
+        VITE_DISCORD_CLIENT_ID: ${DISCORD_APPLICATION_ID}
+        VITE_SERVER_URL: ${PUBLIC_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID}
+      DISCORD_CLIENT_ID: ${DISCORD_APPLICATION_ID}
+      DISCORD_CLIENT_SECRET: ${DISCORD_CLIENT_SECRET}
+      DB_PATH: /data/ludocord.db
+      BOT_INVITE_URL: ${BOT_INVITE_URL}
+      COMMUNITY_URL: ${COMMUNITY_URL}
+    volumes:
+      - ludocord_data:/data
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - ludocord
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  ludocord_data:
+  caddy_data:
+  caddy_config:
