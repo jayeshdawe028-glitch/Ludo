@@ -1,4 +1,0 @@
-{$PUBLIC_DOMAIN}
-
-reverse_proxy ludocord:3000
-encode gzip

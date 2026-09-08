@@ -1,67 +1,78 @@
-# LudoCord
+# Aarohi — Discord AI Character
 
-A lightweight 2–4 player Ludo Discord Activity with global matchmaking, spectators, lifetime stats and slash commands. The Activity uses Discord's Embedded App SDK; the server owns the authoritative game state so clients cannot decide illegal moves.
+Aarohi is a casual Hindi/Hinglish Discord AI companion built around a fictional character profile, short-lived conversation memory, configurable channel controls, and provider-agnostic AI APIs.
 
-## What is implemented
+> **Current project:** Discord bot first. The old Ludo Activity code has been removed from the active project.
 
-- Discord OAuth authorize → server token exchange → SDK authenticate
-- Discord display name in the UI; no separate username account system
-- Classic Ludo core: 4 tokens, six-to-leave-home, exact finish, captures, safe squares, extra turn on six/capture and win detection
-- Server-authoritative dice and move validation
-- Socket.IO live synchronization
-- Channel game rooms scoped to the Discord Activity instance
-- Global Random World matchmaking, 2–4 active players
-- Players beyond four become spectators
-- Disconnect state is retained for reconnects
-- SQLite lifetime stats: games played, wins and losses
-- `/flex`, `/help`, `/check @user`, `/invite`, `/community`
-- Loading splash, responsive board, turn UI, token selection, music toggle, SFX toggle and Ko-fi donate link
-- Lightweight procedural audio: no music/VFX asset downloads are required
-- Production Docker + Caddy HTTPS setup for a small Oracle VM
-- GitHub Actions CI for server tests and Activity/server builds
+## Character
+Aarohi is a fictional 22-year-old Indian girl from Udaipur, Rajasthan. The complete character bible lives in `apps/bot/src/ai/prompts/character.md` so the personality does not depend on the AI provider.
 
-## Commands
+The uploaded character specification is preserved in the codebase, including language style, family lore, food/music preferences, DM policy, Instagram, developer recognition, and the four-hour temporary memory rule.
 
-- `/flex` — your lifetime stats
-- `/help` — all LudoCord commands
-- `/check @user` — another player's lifetime stats
-- `/invite` — bot invite URL
-- `/community` — community URL
+## Memory
+Conversation context is temporary and user-isolated. The default maximum context lifetime is **4 hours**. Old conversation context is not used after expiry and is cleaned up automatically. The bot does not maintain a permanent per-user message archive for personalization.
+
+## Channel controls
+Admin/owner-only configuration commands:
+
+- `/Primarychat #channel` — restrict Aarohi's automatic conversational replies to the selected channel.
+- `/Ignorechat #channel` — completely ignore the selected channel, including mentions.
+- `/setonechatchannel #channel` — server-wide restriction: Aarohi only responds in this one channel and ignores tags elsewhere.
+
+`/Primarychat` and `/setonechatchannel` are server-scoped settings. `/Ignorechat` stores an ignore list so multiple channels can be muted if needed.
+
+Aarohi can otherwise read/respond to normal server messages where Discord permissions and the configured chat policy allow it. To receive ordinary messages, enable Discord's **Message Content Intent** in the Developer Portal.
+
+## Public commands
+
+- `/invite` — bot invite link
+- `/donate` — Ko-fi donation link
+- `/help` — community server link
+- `/vote` — reserved for a future Top.gg voting link
+
+## Links
+
+Community server: https://discord.gg/syCAe6zxhW
+
+Donation: https://ko-fi.com/alwaysjake28
+
+Aarohi Instagram: https://www.instagram.com/im_aarohi_ai
+
+Developer (Jake): Discord user ID `993147236668149801`
+
+## AI provider architecture
+The AI provider is replaceable without moving character rules into the provider itself:
+
+```env
+AI_PROVIDER=groq
+AI_API_KEY=your_key
+AI_MODEL=your_model
+```
+
+Provider adapters live under `apps/bot/src/ai/providers/`. The character prompt, channel policy, memory handling, and Discord behavior remain in our codebase.
+
+## Environment
+Copy `.env.example` to `.env` on the Oracle VM and fill in the real values. Secrets are intentionally excluded from Git.
 
 ## Local development
 
 ```bash
-cp .env.example .env
 npm install
-npm run dev
+npm run build
+npm start
 ```
 
-For the Activity, create `apps/activity/.env` from `apps/activity/.env.example` and set the Discord application ID plus the local server URL. The server needs `DISCORD_CLIENT_SECRET` for the OAuth code exchange.
+## Docker / Oracle
 
-## Production on Oracle
+```bash
+docker compose up -d --build
+```
 
-The repository includes `Dockerfile`, `docker-compose.yml` and `deploy/Caddyfile`.
+The existing Oracle/Caddy setup can continue to proxy the app's health endpoint through port 3000. The bot itself only needs outbound access to Discord and the configured AI provider.
 
-1. Create an Oracle VM and point a domain/subdomain at its public IP.
-2. Open TCP `80` and `443` in the Oracle Cloud security list/NSG and the VM firewall.
-3. Copy `.env.example` to `.env` on the VM.
-4. Set `PUBLIC_DOMAIN`, `PUBLIC_URL`, `DISCORD_APPLICATION_ID`, `DISCORD_CLIENT_SECRET`, `DISCORD_BOT_TOKEN`, `BOT_INVITE_URL` and `COMMUNITY_URL`.
-5. Run `docker compose up -d --build`.
-6. Caddy obtains the HTTPS certificate automatically.
-7. In Discord Developer Portal, configure the Activity's URL to `PUBLIC_URL`, configure OAuth scopes/redirects as required by the Embedded App SDK, and enable the Activity for development/testing.
+## Character source
+The full source-of-truth character specification is maintained at:
 
-The same Node container serves the built Activity and Socket.IO/API server. A separate lightweight container runs the slash-command bot. SQLite is stored in a persistent Docker volume.
+`apps/bot/src/ai/prompts/character.md`
 
-## Manual items still required before a real Discord launch
-
-- Discord Application ID and Client Secret in the server environment
-- Discord Bot Token in the bot environment
-- Final public domain/HTTPS URL
-- Bot invite URL and community invite URL
-- Discord Developer Portal Activity configuration and development-team access
-- Oracle VM creation, DNS and ports 80/443
-- One real Discord test with two accounts, then four accounts, then a fifth spectator
-
-## Known game-rule scope
-
-The core board/rules are implemented server-side, but this is intentionally a lightweight Ludo implementation rather than a clone of every regional Ludo ruleset. Block/stack-specific variants and cosmetic animations can be added later without changing the networking architecture.
+It is based on the provided `Aarohi_README-1.md` specification, including the four-hour memory requirement.

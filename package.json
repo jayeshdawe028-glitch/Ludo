@@ -1,17 +1,11 @@
 {
-  "name": "ludocord",
-  "private": true,
-  "version": "0.1.0",
-  "description": "Lightweight Discord Embedded Activity Ludo",
-  "workspaces": ["apps/activity", "apps/server", "apps/bot"],
+  "name": "aarohi-discord",
+  "private": false,
+  "version": "1.0.0",
+  "description": "Aarohi Discord AI companion",
   "scripts": {
-    "install:all": "npm install --workspaces",
-    "dev": "concurrently \"npm run dev --workspace apps/server\" \"npm run dev --workspace apps/activity\"",
-    "build": "npm run build --workspace apps/activity && npm run build --workspace apps/server",
-    "start": "npm run start --workspace apps/server",
-    "test": "npm run test --workspace apps/server"
-  },
-  "devDependencies": {
-    "concurrently": "^9.2.0"
+    "build": "npm --prefix apps/bot run build",
+    "start": "npm --prefix apps/bot start",
+    "dev": "npm --prefix apps/bot dev"
   }
 }

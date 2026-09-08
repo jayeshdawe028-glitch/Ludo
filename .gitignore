@@ -4,6 +4,7 @@ dist/
 .env.*
 !.env.example
 *.db
-*.db-shm
-*.db-wal
+*.sqlite
+*.sqlite3
+coverage/
 .DS_Store
