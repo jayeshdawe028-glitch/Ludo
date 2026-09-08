@@ -1,13 +1,20 @@
 services:
-  ludocord:
-    build: .
+  aarohi:
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: aarohi
     restart: unless-stopped
+    init: true
     env_file: .env
     ports:
       - "127.0.0.1:3000:3000"
     volumes:
       - aarohi_data:/data
+    mem_limit: 450m
+    pids_limit: 128
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   aarohi_data:

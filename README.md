@@ -1,47 +1,42 @@
-# Aarohi — Discord AI Character
+# Aarohi — Discord AI Companion
 
-Aarohi is a casual Hindi/Hinglish Discord AI companion built around a fictional character profile, short-lived conversation memory, configurable channel controls, and provider-agnostic AI APIs.
+Aarohi is a lightweight, text-only Discord AI companion. The character specification stays inside this repository, while the AI provider is configurable through environment variables.
 
-> **Current project:** Discord bot first. The old Ludo Activity code has been removed from the active project.
+## Behavior
 
-## Character
-Aarohi is a fictional 22-year-old Indian girl from Udaipur, Rajasthan. The complete character bible lives in `apps/bot/src/ai/prompts/character.md` so the personality does not depend on the AI provider.
+Default trigger: Aarohi replies when a user mentions her or replies to one of her messages.
 
-The uploaded character specification is preserved in the codebase, including language style, family lore, food/music preferences, DM policy, Instagram, developer recognition, and the four-hour temporary memory rule.
+`/primarychat #channel` makes that channel a free-chat channel where ordinary messages trigger Aarohi. Other channels keep the default mention/reply behavior.
 
-## Memory
-Conversation context is temporary and user-isolated. The default maximum context lifetime is **4 hours**. Old conversation context is not used after expiry and is cleaned up automatically. The bot does not maintain a permanent per-user message archive for personalization.
+`/setonechatchannel #channel` enables single-channel mode. Only that channel triggers Aarohi, without mentions.
 
-## Channel controls
-Admin/owner-only configuration commands:
+`/ignorechat #channel` completely silences Aarohi in that channel. Ignore rules have priority over every other channel mode.
 
-- `/Primarychat #channel` — restrict Aarohi's automatic conversational replies to the selected channel.
-- `/Ignorechat #channel` — completely ignore the selected channel, including mentions.
-- `/setonechatchannel #channel` — server-wide restriction: Aarohi only responds in this one channel and ignores tags elsewhere.
+Aarohi does not have normal Discord DM conversations and redirects users to a server channel.
 
-`/Primarychat` and `/setonechatchannel` are server-scoped settings. `/Ignorechat` stores an ignore list so multiple channels can be muted if needed.
+## Commands
 
-Aarohi can otherwise read/respond to normal server messages where Discord permissions and the configured chat policy allow it. To receive ordinary messages, enable Discord's **Message Content Intent** in the Developer Portal.
-
-## Public commands
-
-- `/invite` — bot invite link
-- `/donate` — Ko-fi donation link
+Public:
+- `/invite` — Aarohi invite link
+- `/donate` — donation page
 - `/help` — community server link
-- `/vote` — reserved for a future Top.gg voting link
+- `/vote` — Top.gg voting link when configured
+- `/reset` — delete your temporary conversation memory
 
-## Links
+Admin/owner/developer:
+- `/primarychat #channel`
+- `/ignorechat #channel`
+- `/setonechatchannel #channel`
 
-Community server: https://discord.gg/syCAe6zxhW
+## Temporary memory
 
-Donation: https://ko-fi.com/alwaysjake28
+Conversation context is isolated per Discord user and automatically expires after about 4 hours of inactivity. Only the most recent context window is kept. `/reset` deletes the user's current session immediately.
 
-Aarohi Instagram: https://www.instagram.com/im_aarohi_ai
+The SQLite database stores only short-lived session context, guild channel settings, and rate-limit state. It is mounted at `/data/aarohi.sqlite3` in production.
 
-Developer (Jake): Discord user ID `993147236668149801`
+## AI provider
 
-## AI provider architecture
-The AI provider is replaceable without moving character rules into the provider itself:
+The provider is selected without changing Aarohi's character code:
 
 ```env
 AI_PROVIDER=groq
@@ -49,30 +44,72 @@ AI_API_KEY=your_key
 AI_MODEL=your_model
 ```
 
-Provider adapters live under `apps/bot/src/ai/providers/`. The character prompt, channel policy, memory handling, and Discord behavior remain in our codebase.
+Supported providers in the current adapter:
+- `groq`
+- `gemini`
 
-## Environment
-Copy `.env.example` to `.env` on the Oracle VM and fill in the real values. Secrets are intentionally excluded from Git.
+Switching provider only requires changing the environment values. Do not put API keys in GitHub.
 
-## Local development
+## Required environment
 
-```bash
-npm install
-npm run build
-npm start
+Copy `.env.example` to `.env` on the server and fill:
+
+```env
+DISCORD_APPLICATION_ID=
+DISCORD_BOT_TOKEN=
+AI_PROVIDER=groq
+AI_API_KEY=
+AI_MODEL=openai/gpt-oss-20b
+PORT=3000
 ```
 
-## Docker / Oracle
+The included defaults also contain the community, donation, developer ID, memory, and rate-limit settings.
+
+## Discord setup
+
+Enable the **Message Content Intent** for Aarohi in the Discord Developer Portal. The bot also needs permission to view channels, read message history, and send messages where it should chat.
+
+## Oracle deployment
+
+The project is designed for the existing lightweight Oracle VM + host Caddy setup. Docker Compose exposes Aarohi only on `127.0.0.1:3000`, so the host Caddy service can continue to terminate HTTPS and proxy the public domain to port 3000.
+
+From the repository directory on Oracle:
 
 ```bash
-docker compose up -d --build
+cp .env.example .env
+# edit .env once with your real credentials
+./deploy/oracle-deploy.sh
 ```
 
-The existing Oracle/Caddy setup can continue to proxy the app's health endpoint through port 3000. The bot itself only needs outbound access to Discord and the configured AI provider.
+For later updates:
 
-## Character source
-The full source-of-truth character specification is maintained at:
+```bash
+./deploy/oracle-deploy.sh
+```
 
-`apps/bot/src/ai/prompts/character.md`
+The container has a healthcheck at `/health` and automatically restarts unless manually stopped.
 
-It is based on the provided `Aarohi_README-1.md` specification, including the four-hour memory requirement.
+## Development
+
+```bash
+npm --prefix apps/bot install
+npm --prefix apps/bot run dev
+```
+
+Build:
+
+```bash
+npm --prefix apps/bot run build
+```
+
+Run:
+
+```bash
+npm --prefix apps/bot start
+```
+
+## Links
+
+Community: https://discord.gg/syCAe6zxhW
+Donation: https://ko-fi.com/alwaysjake28
+Instagram: https://www.instagram.com/im_aarohi_ai
