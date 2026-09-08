@@ -23,5 +23,5 @@ volumes:
 
 networks:
   aarohi_net:
-    name: ludo_default
+    name: aarohi_net
     driver: bridge
