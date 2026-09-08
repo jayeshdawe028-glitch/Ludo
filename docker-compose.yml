@@ -15,6 +15,13 @@ services:
     pids_limit: 128
     security_opt:
       - no-new-privileges:true
+    networks:
+      - aarohi_net
 
 volumes:
   aarohi_data:
+
+networks:
+  aarohi_net:
+    name: ludo_default
+    driver: bridge
