@@ -8,6 +8,7 @@ import './styles.css';
 const clientId = import.meta.env.VITE_DISCORD_CLIENT_ID ?? '';
 const SERVER = import.meta.env.VITE_SERVER_URL ?? 'http://localhost:3000';
 const sdk = new DiscordSDK(clientId || 'YOUR_APPLICATION_ID');
+const runningInsideDiscord = window.self !== window.top;
 
 type Player = { id:string; username:string; color:PlayerColor; connected:boolean; isSpectator:boolean; pieces:number[]; finished:number };
 type Room = { roomId:string; mode:'channel'|'world'; players:Player[]; currentTurn:string|null; status:'waiting'|'playing'|'finished'; winnerId:string|null; dice:number|null; validMoves:number[]; lastRollBy:string|null; lastMove:{playerId:string;pieceIndex:number;captured:boolean}|null };
@@ -24,6 +25,11 @@ function App(){
 
   useEffect(()=>{
     audio.current=new AudioEngine();
+    if(!runningInsideDiscord){
+      setAuthError('LudoCord is a Discord Activity. Open it from inside a Discord voice channel to play.');
+      setReady(true);
+      return()=>audio.current?.destroy();
+    }
     (async()=>{try{
       await sdk.ready();
       if(!clientId)throw new Error('VITE_DISCORD_CLIENT_ID is missing');
