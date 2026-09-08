@@ -16,13 +16,18 @@ const io = new Server(server, { cors: { origin: true, methods: ['GET', 'POST'] }
 
 const db = new Database(process.env.DB_PATH ?? './ludocord.db');
 db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
 db.exec(`CREATE TABLE IF NOT EXISTS players (discord_id TEXT PRIMARY KEY, username TEXT NOT NULL, games_played INTEGER NOT NULL DEFAULT 0, wins INTEGER NOT NULL DEFAULT 0, losses INTEGER NOT NULL DEFAULT 0, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)`);
 
 const rooms = new Map<string, RoomState>();
 const worldRooms = new Set<string>();
 const socketRooms = new Map<string, string>();
 const roomFinishRecorded = new Set<string>();
+const ROOM_IDLE_MS = 30 * 60 * 1000;
+const FINISHED_ROOM_TTL_MS = 5 * 60 * 1000;
+const roomLastActivity = new Map<string, number>();
 
+function touchRoom(room: RoomState) { roomLastActivity.set(room.roomId, Date.now()); }
 function upsertPlayer(discordId: string, username: string) { db.prepare(`INSERT INTO players (discord_id, username) VALUES (?, ?) ON CONFLICT(discord_id) DO UPDATE SET username=excluded.username, updated_at=CURRENT_TIMESTAMP`).run(discordId, username); }
 function stats(discordId: string) { return db.prepare(`SELECT discord_id as discordId, username, games_played as gamesPlayed, wins, losses FROM players WHERE discord_id=?`).get(discordId) ?? { discordId, username: 'Unknown', gamesPlayed: 0, wins: 0, losses: 0 }; }
 function finishRoom(room: RoomState, winnerId: string) {
@@ -30,9 +35,25 @@ function finishRoom(room: RoomState, winnerId: string) {
   roomFinishRecorded.add(room.roomId);room.status='finished';room.winnerId=winnerId;
   const update=db.prepare(`UPDATE players SET games_played=games_played+1,wins=wins+?,losses=losses+?,updated_at=CURRENT_TIMESTAMP WHERE discord_id=?`);
   db.transaction(()=>{for(const p of activePlayers(room))update.run(p.id===winnerId?1:0,p.id===winnerId?0:1,p.id)})();
+  touchRoom(room);
 }
-function emitRoom(room:RoomState){io.to(room.roomId).emit('room_state',room)}
+function emitRoom(room:RoomState){touchRoom(room);io.to(room.roomId).emit('room_state',room)}
 function findWorldRoom(){for(const roomId of worldRooms){const room=rooms.get(roomId);if(room&&room.status!=='finished'&&activePlayers(room).length<MAX_PLAYERS)return room;worldRooms.delete(roomId)}return undefined}
+function cleanupRooms() {
+  const now = Date.now();
+  for (const [roomId, room] of rooms) {
+    const lastActivity = roomLastActivity.get(roomId) ?? now;
+    const connected = room.players.filter(p => p.connected).length;
+    const expired = room.status === 'finished' ? now - lastActivity > FINISHED_ROOM_TTL_MS : connected === 0 && now - lastActivity > ROOM_IDLE_MS;
+    if (!expired) continue;
+    rooms.delete(roomId);
+    worldRooms.delete(roomId);
+    roomLastActivity.delete(roomId);
+    roomFinishRecorded.delete(roomId);
+  }
+}
+const cleanupTimer = setInterval(cleanupRooms, 60_000);
+cleanupTimer.unref();
 
 app.get('/health',(_req,res)=>res.json({ok:true,service:'ludocord-server',rooms:rooms.size}));
 app.get('/api/stats/:discordId',(req,res)=>res.json(stats(req.params.discordId)));
@@ -61,13 +82,13 @@ io.on('connection',socket=>{
   socket.on('join_world',({discordId,username}:{discordId:string;username:string})=>{
     if(!discordId||!username)return socket.emit('game_error',{message:'Discord identity is required'});
     upsertPlayer(discordId,username);let room=findWorldRoom();
-    if(!room){const roomId=`world-${crypto.randomUUID()}`;room=createRoom(roomId,'world');rooms.set(roomId,room);worldRooms.add(roomId)}
+    if(!room){const roomId=`world-${crypto.randomUUID()}`;room=createRoom(roomId,'world');rooms.set(roomId,room);worldRooms.add(roomId);touchRoom(room)}
     const player=addPlayer(room,discordId,username,activePlayers(room).length>=MAX_PLAYERS);socket.join(room.roomId);socketRooms.set(socket.id,room.roomId);
     socket.emit('room_joined',{room,playerId:player.id});emitRoom(room);socket.emit('matchmaking',{waiting:room.status==='waiting'});
   });
   socket.on('join_channel',({roomId,discordId,username}:{roomId:string;discordId:string;username:string})=>{
     if(!roomId||!discordId||!username)return socket.emit('game_error',{message:'Channel and Discord identity are required'});
-    upsertPlayer(discordId,username);let room=rooms.get(roomId);if(!room){room=createRoom(roomId,'channel');rooms.set(roomId,room)}
+    upsertPlayer(discordId,username);let room=rooms.get(roomId);if(!room){room=createRoom(roomId,'channel');rooms.set(roomId,room);touchRoom(room)}
     if(room.status==='finished')return socket.emit('game_error',{message:'This game has ended. Start a new Activity to play again.'});
     const player=addPlayer(room,discordId,username,activePlayers(room).length>=MAX_PLAYERS);socket.join(roomId);socketRooms.set(socket.id,roomId);
     socket.emit('room_joined',{room,playerId:player.id});emitRoom(room);
