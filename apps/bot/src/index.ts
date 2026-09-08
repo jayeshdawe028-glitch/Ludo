@@ -69,7 +69,6 @@ const distPromptPath = path.resolve(process.cwd(), "apps/bot/dist/ai/prompts/cha
 const characterPrompt = fs.readFileSync(fs.existsSync(promptPath) ? promptPath : distPromptPath, "utf8");
 
 type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
-
 type SessionData = { messages: ChatMessage[] };
 
 function nowMs() {
@@ -258,8 +257,12 @@ async function registerCommands() {
 
 client.once("ready", async () => {
   console.log(`Logged in as ${client.user?.tag}`);
-  await registerCommands();
-  console.log("Slash commands registered.");
+  try {
+    await registerCommands();
+    console.log("Slash commands registered.");
+  } catch (error) {
+    console.error("Slash command registration failed; will retry on next ready event:", error);
+  }
 });
 
 client.on("interactionCreate", async (interaction) => {
@@ -336,4 +339,21 @@ const shutdown = async (signal: string) => {
 process.on("SIGTERM", () => void shutdown("SIGTERM"));
 process.on("SIGINT", () => void shutdown("SIGINT"));
 
-void client.login(DISCORD_BOT_TOKEN);
+async function loginWithRetry() {
+  let attempt = 0;
+  while (true) {
+    try {
+      attempt += 1;
+      console.log(`Connecting to Discord (attempt ${attempt})...`);
+      await client.login(DISCORD_BOT_TOKEN);
+      return;
+    } catch (error) {
+      console.error("Discord connection failed; retrying:", error);
+      try { await client.destroy(); } catch (destroyError) { console.error("Discord reset failed:", destroyError); }
+      const delayMs = Math.min(30_000, 2_000 * Math.min(attempt, 10));
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
+void loginWithRetry();
